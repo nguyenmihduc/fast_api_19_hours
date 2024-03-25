@@ -40,9 +40,9 @@ def create_posts(
     post_dict.update({"owner_id": current_user.id})
 
     new_post = models.Post(**post_dict)
+
     db.add(new_post)
     db.commit()
-
     db.refresh(new_post)
 
     return new_post

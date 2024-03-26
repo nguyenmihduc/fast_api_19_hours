@@ -1,6 +1,9 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, oauth2, schemas
@@ -9,7 +12,9 @@ from ..database import get_db
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-@router.get("/", response_model=List[schemas.Post])
+# @router.get("/")
+# @router.get("/", response_model=List[schemas.Post])
+@router.get("/", response_model=List[schemas.PostOut])
 def get_posts(
     db: Session = Depends(get_db),
     current_user: schemas.UserOut = Depends(oauth2.get_current_user),
@@ -26,7 +31,15 @@ def get_posts(
     )
     # posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
 
-    return posts
+    results = (
+        db.query(models.Post, func.count(models.Vote.post_id).label("votes"))
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
+        .group_by(models.Post.id)
+        .all()
+    )
+    # results = list(map(lambda x: x._mapping, results))
+
+    return results
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)

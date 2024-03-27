@@ -16,6 +16,3 @@ uvicorn app.main:app --reload
 
 7.nếu cài thêm thư viện mới thì chạy lệnh bên dưới để cập nhật lại file requirements.txt:
 pip freeze > requirements.txt
-
-8.lưu ý cài thư viện này để tránh lỗi:
-pip install --force-reinstall -v "SQLAlchemy==1.4.46"

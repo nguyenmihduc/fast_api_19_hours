@@ -1,8 +1,6 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -12,8 +10,6 @@ from ..database import get_db
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-# @router.get("/")
-# @router.get("/", response_model=List[schemas.Post])
 @router.get("/", response_model=List[schemas.PostOut])
 def get_posts(
     db: Session = Depends(get_db),
@@ -23,23 +19,16 @@ def get_posts(
     search: Optional[str] = "",
 ):
     posts = (
-        db.query(models.Post)
+        db.query(models.Post, func.count(models.Vote.post_id).label("votes"))
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
+        .group_by(models.Post.id)
         .filter(models.Post.title.contains(search))
         .limit(limit)
         .offset(skip)
         .all()
     )
-    # posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
 
-    results = (
-        db.query(models.Post, func.count(models.Vote.post_id).label("votes"))
-        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
-        .group_by(models.Post.id)
-        .all()
-    )
-    # results = list(map(lambda x: x._mapping, results))
-
-    return results
+    return posts
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
@@ -48,10 +37,8 @@ def create_posts(
     db: Session = Depends(get_db),
     current_user: schemas.UserOut = Depends(oauth2.get_current_user),
 ):
-
     post_dict = post.dict()
     post_dict.update({"owner_id": current_user.id})
-
     new_post = models.Post(**post_dict)
 
     db.add(new_post)
@@ -61,13 +48,19 @@ def create_posts(
     return new_post
 
 
-@router.get("/{id}", response_model=schemas.Post)
+@router.get("/{id}", response_model=schemas.PostOut)
 def get_post(
     id: int,
     db: Session = Depends(get_db),
     current_user: schemas.UserOut = Depends(oauth2.get_current_user),
 ):
-    post = db.query(models.Post).filter(models.Post.id == id).first()
+    post = (
+        db.query(models.Post, func.count(models.Vote.post_id).label("votes"))
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
+        .group_by(models.Post.id)
+        .filter(models.Post.id == id)
+        .first()
+    )
 
     if not post:
         raise HTTPException(

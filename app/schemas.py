@@ -18,12 +18,12 @@ class PostCreate(PostBase):
 class UserOut(BaseModel):
     id: int
     email: EmailStr
-    create_at: datetime
+    created_at: datetime
 
 
 class Post(PostBase):
     id: int
-    create_at: datetime
+    created_at: datetime
     owner_id: int
     owner: UserOut
 
